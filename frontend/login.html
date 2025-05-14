@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="text" name="username" placeholder="Utilizador" required />
+      <input type="password" name="password" placeholder="Palavra-passe" required />
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <script>
+    // Se já estiver autenticado, redireciona para a página protegida
+  if (localStorage.getItem('token')) {
+    window.location.href = 'success.html';
+  }
+  
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const username = form.username.value.trim();
+    const password = form.password.value.trim();
+
+    if (!username || !password) {
+      alert("Preenche todos os campos.");
+      return;
+    }
+
+    const res = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      window.location.href = 'success.html'; // ou outra página
+    } else {
+      alert(data.message);
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Área Segura</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h2 id="welcome">Bem-vindo!</h2>
+    <p>Estás autenticado com sucesso nesta área protegida.</p>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Se não houver token, redireciona para login
+      window.location.href = 'login.html';
+    } else {
+      // Valida token no backend (opcional mas melhor prática)
+      fetch('http://localhost:3000/api/auth/verify', {
+        headers: { Authorization: token }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Token inválido');
+        return res.json();
+      })
+      .then(data => {
+        document.getElementById('welcome').innerText = `Bem-vindo, ${data.username}!`;
+      })
+      .catch(err => {
+        alert("Sessão expirada ou inválida. Faz login novamente.");
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
