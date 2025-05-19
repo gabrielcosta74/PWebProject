@@ -1,21 +1,21 @@
-// backend/create-user.js
-
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const User = require('./models/User'); // caminho para o teu modelo
+const User = require('./models/User'); // modelo de utilizador
 
-// Liga ao MongoDB
+// Ligar à base de dados
 mongoose.connect('mongodb://localhost:27017/energia')
   .then(async () => {
     console.log('Ligado ao MongoDB');
 
-    const username = 'admin';
-    const plainPassword = 'admin123';
+    // Personaliza aqui:
+    const username = 'tecnico1';
+    const plainPassword = 'tecnico123';
+    const role = 'Tecnico'; // ou 'Tecnico'
 
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     try {
-      const user = await User.create({ username, password: hashedPassword });
+      const user = await User.create({ username, password: hashedPassword, role });
       console.log('Utilizador criado:', user);
     } catch (err) {
       console.error('Erro ao criar utilizador:', err.message);
