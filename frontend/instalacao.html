@@ -1,0 +1,67 @@
+<!-- frontend/instalacao.html -->
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registar Instalação</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="navbar">
+      <div class="navbar-brand">EnergiaSolar</div>
+      <ul class="navbar-links">
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="instalacao.html" class="active">Nova Instalação</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </nav>
+
+    <div class="dashboard-main">
+      <h2 style="text-align:center">Registar Nova Instalação</h2>
+      <div class="form-wrapper">
+        <div class="form-card">
+          <form id="formInstalacao">
+            <input type="text" name="localizacao" placeholder="Localização" required />
+            <input type="number" name="capacidadeKW" placeholder="Capacidade (kW)" required />
+            <input type="text" name="marcaPainel" placeholder="Marca do Painel" required />
+            <button type="submit">Submeter</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'login.html';
+
+    document.getElementById('formInstalacao').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const res = await fetch('http://localhost:3000/api/instalacoes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token
+        },
+        body: JSON.stringify({
+          localizacao: form.localizacao.value,
+          capacidadeKW: form.capacidadeKW.value,
+          marcaPainel: form.marcaPainel.value
+        })
+      });
+
+      const data = await res.json();
+      alert(data.message);
+      if (res.status === 201) window.location.href = 'dashboard.html';
+    });
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>

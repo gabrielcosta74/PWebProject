@@ -17,37 +17,67 @@
   </div>
 
   <script>
-    // Se já estiver autenticado, redireciona para a página protegida
-  if (localStorage.getItem('token')) {
-    window.location.href = 'success.html';
-  }
+    if (localStorage.getItem('token')) {
+      fetch('http://localhost:3000/api/auth/verify', {
+        headers: { Authorization: localStorage.getItem('token') }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.role === 'Cliente') {
+          window.location.href = 'dashboard.html';
+        } else if (data.role === 'Tecnico') {
+          window.location.href = 'dashboard-tecnico.html';
+        } else {
+          localStorage.removeItem('token');
+          alert('Utilizador sem role válida.');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+      });
+    }
   
-  document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const username = form.username.value.trim();
-    const password = form.password.value.trim();
-
-    if (!username || !password) {
-      alert("Preenche todos os campos.");
-      return;
-    }
-
-    const res = await fetch('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const username = form.username.value.trim();
+      const password = form.password.value.trim();
+  
+      if (!username || !password) {
+        alert("Preenche todos os campos.");
+        return;
+      }
+  
+      const res = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+  
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+  
+        // Agora obtemos o role
+        const verifyRes = await fetch('http://localhost:3000/api/auth/verify', {
+          headers: { Authorization: data.token }
+        });
+        const userData = await verifyRes.json();
+  
+        if (userData.role === 'Cliente') {
+          window.location.href = 'dashboard.html';
+        } else if (userData.role === 'Tecnico') {
+          window.location.href = 'dashboard-tecnico.html';
+        } else {
+          alert('Utilizador sem role válida.');
+          localStorage.removeItem('token');
+        }
+      } else {
+        alert(data.message);
+      }
     });
-
-    const data = await res.json();
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      window.location.href = 'success.html'; // ou outra página
-    } else {
-      alert(data.message);
-    }
-  });
-</script>
+  </script>
+  
 
 </body>
 </html>

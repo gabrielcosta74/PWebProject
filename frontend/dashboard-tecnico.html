@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Técnico</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="navbar">
+      <div class="navbar-brand">EnergiaSolar</div>
+      <ul class="navbar-links">
+        <li><a href="#" class="active">Dashboard</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </nav>
+
+    <main class="dashboard-main">
+      <h2>Bem-vindo, Técnico</h2>
+      <p>Instalações Pendentes:</p>
+
+      <div class="filtro-box">
+        <input type="text" id="filtro" placeholder="Pesquisar por nome, localização ou marca..." />
+      </div>
+      
+    
+      <div id="lista-inst" class="instalacoes-list"></div>
+    </main>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'login.html';
+  
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+  
+    let todasInstalacoes = [];
+  
+    function mostrarInstalacoes(filtradas) {
+      const container = document.getElementById('lista-inst');
+      container.innerHTML = '';
+  
+      if (filtradas.length === 0) {
+        container.innerHTML = '<p>Nenhuma instalação encontrada.</p>';
+        return;
+      }
+  
+      filtradas.forEach(inst => {
+        const card = document.createElement('div');
+        card.className = 'inst-card';
+        card.innerHTML = `
+          <div class="inst-info">
+            <h3>${inst.cliente.username}</h3>
+            <p><strong>Localização:</strong> ${inst.localizacao}</p>
+            <p><strong>Capacidade:</strong> ${inst.capacidadeKW} kW</p>
+            <p><strong>Marca:</strong> ${inst.marcaPainel}</p>
+          </div>
+          <form class="upload-form" data-id="${inst._id}" enctype="multipart/form-data">
+            <label>Upload do Certificado (PDF):</label>
+            <input type="file" name="certificado" accept="application/pdf" required />
+            <button type="submit">Aprovar</button>
+          </form>
+        `;
+        container.appendChild(card);
+      });
+    }
+  
+    document.getElementById('filtro').addEventListener('input', (e) => {
+      const termo = e.target.value.toLowerCase();
+      const filtradas = todasInstalacoes.filter(inst =>
+        inst.cliente.username.toLowerCase().includes(termo) ||
+        inst.localizacao.toLowerCase().includes(termo) ||
+        inst.marcaPainel.toLowerCase().includes(termo)
+      );
+      mostrarInstalacoes(filtradas);
+    });
+  
+    async function carregarInstalacoes() {
+      const res = await fetch('http://localhost:3000/api/tecnico/pendentes', {
+        headers: { Authorization: token }
+      });
+      const data = await res.json();
+      todasInstalacoes = data;
+      mostrarInstalacoes(data);
+    }
+  
+    document.addEventListener('submit', async (e) => {
+      if (e.target.classList.contains('upload-form')) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const id = form.getAttribute('data-id');
+  
+        const res = await fetch(`http://localhost:3000/api/tecnico/aprovar/${id}`, {
+          method: 'POST',
+          headers: { Authorization: token },
+          body: formData
+        });
+  
+        const data = await res.json();
+        alert(data.message);
+        location.reload();
+      }
+    });
+  
+    carregarInstalacoes();
+  </script>
+  
+</body>
+</html>

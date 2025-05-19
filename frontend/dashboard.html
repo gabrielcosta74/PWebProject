@@ -1,0 +1,65 @@
+<!-- frontend/dashboard.html -->
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Cliente</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="navbar">
+      <div class="navbar-brand">EnergiaSolar</div>
+      <ul class="navbar-links">
+        <li><a href="#" class="active">Dashboard</a></li>
+        <li><a href="instalacao.html">Nova Instalação</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </nav>
+
+    <div class="dashboard-main">
+      <h2 id="greeting">Bem-vindo, Cliente!</h2>
+
+      <div class="dashboard-cards">
+        <div class="card">
+          <h3>Energia Produzida</h3>
+          <p>120.5 kWh</p>
+        </div>
+        <div class="card">
+          <h3>Energia Consumida</h3>
+          <p>85.3 kWh</p>
+        </div>
+        <div class="card">
+          <h3>Créditos</h3>
+          <p id="creditos">35.2 kWh</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = 'login.html';
+    }
+
+    fetch('http://localhost:3000/api/auth/verify', {
+      headers: { Authorization: token }
+    })
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('greeting').innerText = `Bem-vindo, ${data.username}!`;
+    })
+    .catch(() => {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    });
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>
