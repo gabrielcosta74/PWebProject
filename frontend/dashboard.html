@@ -1,4 +1,3 @@
-<!-- frontend/dashboard.html -->
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -11,7 +10,7 @@
   <div class="dashboard-container">
     <nav class="navbar">
       <div class="navbar-brand">EnergiaSolar</div>
-      <ul class="navbar-links">
+      <ul class="navbar-links" id="navbar-links">
         <li><a href="#" class="active">Dashboard</a></li>
         <li><a href="instalacao.html">Nova Instalação</a></li>
         <li><a href="#" onclick="logout()">Logout</a></li>
@@ -19,46 +18,167 @@
     </nav>
 
     <div class="dashboard-main">
-      <h2 id="greeting">Bem-vindo, Cliente!</h2>
+      <h2 id="greeting">Bem-vindo!</h2>
 
+      <!-- RESUMO ENERGÉTICO -->
       <div class="dashboard-cards">
         <div class="card">
-          <h3>Energia Produzida</h3>
-          <p>120.5 kWh</p>
+          <h3>Produção Total (mês)</h3>
+          <p id="producaoMensal">-- kWh</p>
         </div>
         <div class="card">
-          <h3>Energia Consumida</h3>
-          <p>85.3 kWh</p>
-        </div>
-        <div class="card">
-          <h3>Créditos</h3>
-          <p id="creditos">35.2 kWh</p>
+          <h3>Créditos Acumulados</h3>
+          <p id="creditos">-- kWh</p>
         </div>
       </div>
+
+      <!-- INSTALAÇÕES -->
+      <section>
+        <h3 style="margin-top: 2rem;">Minhas Instalações</h3>
+        <div id="instalacoes-container" class="instalacoes-grid">
+          <!-- Cards das instalações -->
+        </div>
+      </section>
     </div>
   </div>
 
   <script>
     const token = localStorage.getItem('token');
+
     if (!token) {
+      window.location.href = 'login.html';
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
       window.location.href = 'login.html';
     }
 
     fetch('http://localhost:3000/api/auth/verify', {
       headers: { Authorization: token }
     })
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById('greeting').innerText = `Bem-vindo, ${data.username}!`;
-    })
-    .catch(() => {
-      localStorage.removeItem('token');
-      window.location.href = 'login.html';
-    });
+      .then(res => {
+        if (!res.ok) throw new Error('Token inválido');
+        return res.json();
+      })
+      .then(data => {
+        if (data.role !== 'Cliente') {
+          localStorage.removeItem('token');
+          window.location.href = 'login.html';
+          return;
+        }
 
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = 'login.html';
+        document.getElementById('greeting').innerText = `Bem-vindo, ${data.username}!`;
+        carregarResumo();
+        carregarInstalacoes();
+      })
+      .catch(err => {
+        console.error('[ERRO VERIFY]', err);
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+      });
+
+    // Obter resumo de produção/créditos (opcional, ajustar backend)
+    async function carregarResumo() {
+      try {
+        const res = await fetch('http://localhost:3000/api/producao/cliente', {
+          headers: { Authorization: token }
+        });
+
+        const data = await res.json();
+        document.getElementById('producaoMensal').innerText = `${data.totalProducao || 0} kWh`;
+        document.getElementById('creditos').innerText = `${data.creditos || 0} `;
+      } catch (err) {
+        console.warn('[Resumo indisponível]', err);
+      }
+    }
+
+    // Obter todas as instalações
+    async function carregarInstalacoes() {
+      try {
+        const res = await fetch('http://localhost:3000/api/instalacoes', {
+          headers: { Authorization: token }
+        });
+
+        const instalacoes = await res.json();
+        const container = document.getElementById('instalacoes-container');
+
+        if (instalacoes.length === 0) {
+          container.innerHTML = '<p>Nenhuma instalação encontrada.</p>';
+          return;
+        }
+
+        instalacoes.forEach(inst => {
+          const card = document.createElement('div');
+          card.className = 'instalacao-card';
+          card.innerHTML = `
+            <h4>${inst.marcaPainel}</h4>
+            <p><strong>Localização:</strong> ${inst.localizacao}</p>
+            <p><strong>Capacidade:</strong> ${inst.capacidadeKW} kW</p>
+            <p><strong>Estado:</strong> ${inst.status}</p>
+            <p><strong>Certificado:</strong> ${
+              inst.certificado
+                ? `<a href="http://localhost:3000/${inst.certificado}" target="_blank">Ver certificado</a>`
+                : 'Indisponível'
+            }</p>
+            
+            ${
+      inst.status === 'Aprovado'
+        ? `<button onclick="atualizarProducao('${inst._id}')">Atualizar Produção</button>
+           <p><strong>Última Produção:</strong> <span id="producao-${inst._id}">-- kWh</span></p>`
+        : ''
+    }
+          `;
+          
+          container.appendChild(card);
+
+          // Buscar a última produção da instalação
+fetch(`http://localhost:3000/api/producao/ultima/${inst._id}`, {
+  headers: { Authorization: token }
+})
+  .then(res => res.json())
+  .then(data => {
+    if (data.valor != null) {
+      document.getElementById(`producao-${inst._id}`).innerText = `${data.valor} kWh`;
+    }
+  })
+  .catch(err => {
+    console.warn(`[ERRO ao obter produção da instalação ${inst._id}]`, err);
+  });
+
+        });
+      } catch (err) {
+        console.error('[ERRO INSTALACOES]', err);
+      }
+    }
+
+    async function atualizarProducao(instalacaoId) {
+      try {
+        const resApi = await fetch('http://localhost:4000/producao');
+        const dataApi = await resApi.json();
+        const valor = dataApi.energiaProduzida;
+
+        document.getElementById(`producao-${instalacaoId}`).innerText = `${valor} kWh`;
+
+        const res = await fetch('http://localhost:3000/api/producao/registar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token
+          },
+          body: JSON.stringify({
+            instalacaoId,
+            valor,
+            timestamp: dataApi.timestamp
+          })
+        });
+
+        const resultado = await res.json();
+        alert(resultado.message);
+      } catch (err) {
+        console.error('[ERRO PRODUCAO]', err);
+        alert('Erro ao atualizar produção');
+      }
     }
   </script>
 </body>

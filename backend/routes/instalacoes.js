@@ -26,4 +26,15 @@ router.post('/', auth, checkRole('Cliente'), async (req, res) => {
   }
 });
 
+// Obter instalações do cliente logado
+router.get('/', auth, checkRole('Cliente'), async (req, res) => {
+  try {
+    const instalacoes = await Instalacao.find({ cliente: req.user.id });
+    res.json(instalacoes);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao obter instalações', error: err.message });
+  }
+});
+
+
 module.exports = router;

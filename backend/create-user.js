@@ -8,9 +8,9 @@ mongoose.connect('mongodb://localhost:27017/energia')
     console.log('Ligado ao MongoDB');
 
     // Personaliza aqui:
-    const username = 'tecnico1';
-    const plainPassword = 'tecnico123';
-    const role = 'Tecnico'; // ou 'Tecnico'
+    const username = 'cliente2';
+    const plainPassword = 'cliente123';
+    const role = 'Cliente'; // ou 'Tecnico'
 
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 

@@ -18,24 +18,28 @@
 
   <script>
     if (localStorage.getItem('token')) {
-      fetch('http://localhost:3000/api/auth/verify', {
-        headers: { Authorization: localStorage.getItem('token') }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.role === 'Cliente') {
-          window.location.href = 'dashboard.html';
-        } else if (data.role === 'Tecnico') {
-          window.location.href = 'dashboard-tecnico.html';
-        } else {
-          localStorage.removeItem('token');
-          alert('Utilizador sem role válida.');
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-      });
+  fetch('http://localhost:3000/api/auth/verify', {
+    headers: { Authorization: localStorage.getItem('token') }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Token inválido');
+    return res.json();
+  })
+  .then(data => {
+    if (data.role === 'Cliente') {
+      window.location.href = 'dashboard.html';
+    } else if (data.role === 'Tecnico') {
+      window.location.href = 'dashboard-tecnico.html';
+    } else {
+      localStorage.removeItem('token');
+      alert('Utilizador sem role válida.');
     }
+  })
+  .catch(() => {
+    localStorage.removeItem('token');
+  });
+}
+
   
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
