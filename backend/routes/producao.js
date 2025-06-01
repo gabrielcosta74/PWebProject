@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const checkRole = require('../middleware/checkRole');
 const Producao = require('../models/Producao');
 const Instalacao = require('../models/Instalacao');
-const Consumo = require('../models/Consumo'); // <-- adiciona isto no topo, se ainda não estiver
+const Consumo = require('../models/Consumo'); 
 
 // Registar produção
 router.post('/registar', auth, checkRole('Cliente'), async (req, res) => {
@@ -22,7 +22,7 @@ router.post('/registar', auth, checkRole('Cliente'), async (req, res) => {
 
     const novaProducao = new Producao({
       instalacao: instalacao._id,
-      cliente: req.user.id, // <-- muito importante
+      cliente: req.user.id, 
       valor,
       timestamp: timestamp || Date.now()
     });
@@ -92,5 +92,53 @@ router.get('/cliente', auth, checkRole('Cliente'), async (req, res) => {
     res.status(500).json({ message: 'Erro ao calcular dados do cliente' });
   }
 });
+
+// Atualizar produção (Gestor de Operações)
+router.post('/atualizar', auth, checkRole('GestorOperacoes'), async (req, res) => {
+  const { instalacaoId, valor, timestamp } = req.body;
+
+  if (!instalacaoId || !valor) {
+    return res.status(400).json({ message: 'Dados de produção incompletos' });
+  }
+
+  try {
+    const instalacao = await Instalacao.findById(instalacaoId);
+    if (!instalacao) {
+      return res.status(404).json({ message: 'Instalação não encontrada' });
+    }
+
+    const clienteId = instalacao.cliente; 
+    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+    const producaoExistente = await Producao.findOne({
+      instalacao: instalacaoId,
+      timestamp: { $gte: inicioMes }
+    });
+
+    if (producaoExistente) {
+      producaoExistente.valor = valor;
+      producaoExistente.timestamp = timestamp || Date.now();
+      await producaoExistente.save();
+      return res.json({ message: 'Produção atualizada com sucesso' });
+    } else {
+      const novaProducao = new Producao({
+        instalacao: instalacao._id,
+        cliente: clienteId,
+        valor,
+        timestamp: timestamp || Date.now()
+      });
+
+      await novaProducao.save();
+      return res.status(201).json({ message: 'Produção registada com sucesso' });
+    }
+
+  } catch (err) {
+    console.error('[ERRO atualizar produção]', err);
+    res.status(500).json({ message: 'Erro ao atualizar produção', error: err.message });
+  }
+});
+
+
+
 
 module.exports = router;
