@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Gestor de Operações</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .cliente-card {
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+    }
+
+    .cliente-header {
+      cursor: pointer;
+      font-weight: bold;
+      background-color: #e3e3e3;
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+
+    .instalacoes-list-gestor {
+      margin-top: 1rem;
+      padding-left: 1rem;
+      display: none;
+    }
+
+    .instalacao-item {
+      margin-bottom: 1.5rem;
+      padding-left: 1rem;
+      border-left: 3px solid #2c3e50;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <nav class="navbar">
+      <div class="navbar-brand">EnergiaSolar</div>
+      <ul class="navbar-links">
+        <li><a href="#" class="active">Dashboard</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </nav>
+
+    <div class="dashboard-main">
+      <h2 id="greeting">Bem-vindo, Gestor de Operações!</h2>
+      <section>
+        <h3>Instalações de Clientes</h3>
+        <button onclick="enviarEmails()">📧 Enviar E-mails Mensais</button>
+        <div id="lista-clientes"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'login.html';
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    }
+
+    // Verifica token e role
+    fetch('http://localhost:3000/api/auth/verify', {
+      headers: { Authorization: token }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.role !== 'GestorOperacoes') {
+          alert('Acesso não autorizado!');
+          localStorage.removeItem('token');
+          window.location.href = 'login.html';
+        } else {
+          document.getElementById('greeting').innerText = `Bem-vindo, ${data.username}!`;
+          carregarClientes();
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+      });
+
+      async function carregarClientes() {
+  try {
+    const res = await fetch('http://localhost:3000/api/gestorOperacoes/clientes-detalhado', {
+      headers: { Authorization: token }
+    });
+    const clientes = await res.json();
+    const container = document.getElementById('lista-clientes');
+    container.innerHTML = '';
+
+    clientes.forEach(cliente => {
+      const card = document.createElement('div');
+      card.className = 'cliente-card';
+
+      const header = document.createElement('div');
+      header.className = 'cliente-header';
+      header.textContent = `👤 ${cliente.username} (${cliente.email}) — Créditos Totais: ${cliente.creditosTotais} kWh | Créditos do Mês: ${cliente.creditosMes} kWh`;
+      header.onclick = () => {
+        const lista = card.querySelector('.instalacoes-list-gestor');
+        lista.style.display = lista.style.display === 'block' ? 'none' : 'block';
+      };
+
+      const listaInstalacoes = document.createElement('div');
+      listaInstalacoes.className = 'instalacoes-list-gestor';
+
+      cliente.instalacoes.forEach(inst => {
+        const instEl = document.createElement('div');
+        instEl.className = 'instalacao-item';
+
+        // HTML base sempre visível
+        let html = `
+          <p><strong>Localização:</strong> ${inst.localizacao}</p>
+          <p><strong>Capacidade:</strong> ${inst.capacidadeKW} kW</p>
+          <p><strong>Marca:</strong> ${inst.marcaPainel}</p>
+          <p><strong>Certificado:</strong> ${
+            inst.certificado
+              ? `<a href="http://localhost:3000/${inst.certificado}" target="_blank">Ver certificado</a>`
+              : 'Indisponível'
+          }</p>
+          <p><strong>Status:</strong> ${inst.status}</p>
+        `;
+
+        // Apenas se estiver aprovado, mostrar restantes dados
+        if (inst.status === 'Aprovado') {
+          html += `
+            <p><strong>Produção do mês:</strong> ${inst.producaoMes} kWh</p>
+            <p><strong>Consumo do mês:</strong> ${inst.consumoMes} kWh</p>
+            <p><strong>Créditos do mês:</strong> ${inst.creditosMes} kWh</p>
+            <p><strong>Créditos totais:</strong> ${inst.creditosTotais} kWh</p>
+            <button onclick="atualizarProducao('${inst.instalacaoId || inst._id}')">Atualizar Produção</button>
+            <button onclick="atualizarConsumo('${inst.instalacaoId || inst._id}')">Atualizar Consumo</button>
+          `;
+        }
+
+        instEl.innerHTML = html;
+        listaInstalacoes.appendChild(instEl);
+      });
+
+      card.appendChild(header);
+      card.appendChild(listaInstalacoes);
+      container.appendChild(card);
+    });
+  } catch (err) {
+    console.error('[Erro ao carregar clientes detalhados]', err);
+  }
+}
+
+
+    async function obterValores(instalacaoId) {
+      try {
+        const res = await fetch(`http://localhost:3000/api/gestorOperacoes/valores/${instalacaoId}`, {
+          headers: { Authorization: token }
+        });
+        const data = await res.json();
+        document.getElementById(`producao-${instalacaoId}`).innerText = `${data.producao || 0} kWh`;
+        document.getElementById(`consumo-${instalacaoId}`).innerText = `${data.consumo || 0} kWh`;
+        document.getElementById(`creditos-${instalacaoId}`).innerText = `${data.creditos || 0} kWh`;
+      } catch (err) {
+        console.warn(`[Erro obter valores ${instalacaoId}]`, err);
+      }
+    }
+
+    async function atualizarProducao(instalacaoId) {
+  try {
+    const resApi = await fetch('http://localhost:4000/producao');
+    const dataApi = await resApi.json();
+    const valor = dataApi.energiaProduzida;
+
+    const res = await fetch(`http://localhost:3000/api/gestorOperacoes/atualizar-producao/${instalacaoId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token
+      },
+      body: JSON.stringify({
+        timestamp: dataApi.timestamp
+      })
+    });
+
+    const resultado = await res.json();
+    alert(resultado.message);
+  } catch (err) {
+    console.error('[ERRO PRODUCAO]', err);
+    alert('Erro ao atualizar produção');
+  }
+}
+
+
+
+async function atualizarConsumo(instalacaoId) {
+  try {
+    const resApi = await fetch('http://localhost:4000/consumo');
+    const dataApi = await resApi.json();
+    const valor = dataApi.energiaConsumida;
+
+    const res = await fetch(`http://localhost:3000/api/gestorOperacoes/atualizar-consumo/${instalacaoId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token
+      },
+      body: JSON.stringify({
+        valor,
+        timestamp: dataApi.timestamp
+      })
+    });
+
+    const resultado = await res.json();
+    alert(resultado.message);
+  } catch (err) {
+    console.error('[ERRO CONSUMO]', err);
+    alert('Erro ao atualizar consumo');
+  }
+}
+
+async function enviarEmails() {
+  if (!confirm('Tens a certeza que queres enviar os e-mails mensais a todos os clientes?')) return;
+
+  try {
+    const res = await fetch('http://localhost:3000/api/gestorOperacoes/enviar-emails', {
+      method: 'POST',
+      headers: { Authorization: token }
+    });
+
+    const data = await res.json();
+    alert(data.message);
+  } catch (err) {
+    console.error('[Erro ao enviar emails]', err);
+    alert('Erro ao enviar os e-mails.');
+  }
+}
+
+
+  </script>
+</body>
+</html>

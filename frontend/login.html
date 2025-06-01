@@ -72,7 +72,11 @@
           window.location.href = 'dashboard.html';
         } else if (userData.role === 'Tecnico') {
           window.location.href = 'dashboard-tecnico.html';
-        } else {
+        } 
+        else if(userData.role == 'GestorOperacoes'){
+          window.location.href = 'dashboard-gestor.html';
+        }
+        else {
           alert('Utilizador sem role válida.');
           localStorage.removeItem('token');
         }

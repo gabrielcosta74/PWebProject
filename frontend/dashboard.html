@@ -5,6 +5,8 @@
   <title>Dashboard Cliente</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
   <div class="dashboard-container">
@@ -23,14 +25,19 @@
       <!-- RESUMO ENERGÉTICO -->
       <div class="dashboard-cards">
         <div class="card">
-          <h3>Produção Total (mês)</h3>
+          <h3>Produção do Mês</h3>
           <p id="producaoMensal">-- kWh</p>
         </div>
         <div class="card">
-          <h3>Créditos Acumulados</h3>
-          <p id="creditos">-- kWh</p>
+          <h3>Consumo do Mês</h3>
+          <p id="consumoMensal">-- kWh</p>
         </div>
       </div>
+
+      
+      
+      
+      
 
       <!-- INSTALAÇÕES -->
       <section>
@@ -39,8 +46,28 @@
           <!-- Cards das instalações -->
         </div>
       </section>
+
+
+      <section>
+        
+        <h3 style="margin: 2rem auto">Histórico Anual</h3>
+        <div class="historico-container">
+        <table id="tabela-historico">
+          <thead>
+            <tr>
+              <th>Mês</th>
+              <th>Produção (kWh)</th>
+              <th>Consumo (kWh)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </section>
     </div>
   </div>
+
+
 
   <script>
     const token = localStorage.getItem('token');
@@ -71,6 +98,8 @@
         document.getElementById('greeting').innerText = `Bem-vindo, ${data.username}!`;
         carregarResumo();
         carregarInstalacoes();
+        carregarHistoricoAnual();
+        
       })
       .catch(err => {
         console.error('[ERRO VERIFY]', err);
@@ -80,18 +109,19 @@
 
     // Obter resumo de produção/créditos (opcional, ajustar backend)
     async function carregarResumo() {
-      try {
-        const res = await fetch('http://localhost:3000/api/producao/cliente', {
-          headers: { Authorization: token }
-        });
+  try {
+    const res = await fetch('http://localhost:3000/api/cliente/resumo-mensal', {
+      headers: { Authorization: token }
+    });
 
-        const data = await res.json();
-        document.getElementById('producaoMensal').innerText = `${data.totalProducao || 0} kWh`;
-        document.getElementById('creditos').innerText = `${data.creditos || 0} `;
-      } catch (err) {
-        console.warn('[Resumo indisponível]', err);
-      }
-    }
+    const data = await res.json();
+    document.getElementById('producaoMensal').innerText = `${data.producaoMes || 0} kWh`;
+    document.getElementById('consumoMensal').innerText = `${data.consumoMes || 0} kWh`;
+  } catch (err) {
+    console.warn('[Resumo indisponível]', err);
+  }
+}
+
 
     // Obter todas as instalações
     async function carregarInstalacoes() {
@@ -112,23 +142,27 @@
           const card = document.createElement('div');
           card.className = 'instalacao-card';
           card.innerHTML = `
-            <h4>${inst.marcaPainel}</h4>
-            <p><strong>Localização:</strong> ${inst.localizacao}</p>
-            <p><strong>Capacidade:</strong> ${inst.capacidadeKW} kW</p>
-            <p><strong>Estado:</strong> ${inst.status}</p>
-            <p><strong>Certificado:</strong> ${
-              inst.certificado
-                ? `<a href="http://localhost:3000/${inst.certificado}" target="_blank">Ver certificado</a>`
-                : 'Indisponível'
-            }</p>
-            
-            ${
-      inst.status === 'Aprovado'
-        ? `<button onclick="atualizarProducao('${inst._id}')">Atualizar Produção</button>
-           <p><strong>Última Produção:</strong> <span id="producao-${inst._id}">-- kWh</span></p>`
-        : ''
-    }
-          `;
+  <h4>${inst.marcaPainel}</h4>
+  <p><strong>Localização:</strong> ${inst.localizacao}</p>
+  <p><strong>Capacidade:</strong> ${inst.capacidadeKW} kW</p>
+  <p><strong>Estado:</strong> ${inst.status}</p>
+  <p><strong>Certificado:</strong> ${
+    inst.certificado
+      ? `<a href="http://localhost:3000/${inst.certificado}" target="_blank">Ver certificado</a>`
+      : 'Indisponível'
+  }</p>
+
+  ${
+    inst.status === 'Aprovado'
+  ? `
+    <p><strong>Produção do mês:</strong> ${inst.producaoMes || '--'} kWh</p>
+    <p><strong>Consumo do mês:</strong> ${inst.consumoMes || '--'} kWh</p>
+  `
+  : '<p><em>Instalação pendente de aprovação.</em></p>'
+
+  }
+`;
+
           
           container.appendChild(card);
 
@@ -146,40 +180,69 @@ fetch(`http://localhost:3000/api/producao/ultima/${inst._id}`, {
     console.warn(`[ERRO ao obter produção da instalação ${inst._id}]`, err);
   });
 
+  // Buscar a última produção da instalação
+fetch(`http://localhost:3000/api/producao/ultima/${inst._id}`, {
+  headers: { Authorization: token }
+})
+  .then(res => res.json())
+  .then(data => {
+    if (data.valor != null) {
+      document.getElementById(`producao-${inst._id}`).innerText = `${data.valor} kWh`;
+    }
+  })
+  .catch(err => {
+    console.warn(`[ERRO ao obter produção da instalação ${inst._id}]`, err);
+  });
+
+// ✅ Buscar o último consumo da instalação (agora corretamente DENTRO do forEach!)
+fetch(`http://localhost:3000/api/consumo/ultima/${inst._id}`, {
+  headers: { Authorization: token }
+})
+  .then(res => res.json())
+  .then(data => {
+    if (data.valor != null) {
+      document.getElementById(`consumo-${inst._id}`).innerText = `${data.valor} kWh`;
+    }
+  })
+  .catch(err => {
+    console.warn(`[ERRO ao obter consumo da instalação ${inst._id}]`, err);
+  });
+
+
         });
       } catch (err) {
         console.error('[ERRO INSTALACOES]', err);
       }
     }
 
-    async function atualizarProducao(instalacaoId) {
-      try {
-        const resApi = await fetch('http://localhost:4000/producao');
-        const dataApi = await resApi.json();
-        const valor = dataApi.energiaProduzida;
+    async function carregarHistoricoAnual() {
+  try {
+    const res = await fetch('http://localhost:3000/api/cliente/historico-anual', {
+      headers: { Authorization: token }
+    });
+    const data = await res.json();
 
-        document.getElementById(`producao-${instalacaoId}`).innerText = `${valor} kWh`;
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const tbody = document.querySelector('#tabela-historico tbody');
+    tbody.innerHTML = '';
 
-        const res = await fetch('http://localhost:3000/api/producao/registar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: token
-          },
-          body: JSON.stringify({
-            instalacaoId,
-            valor,
-            timestamp: dataApi.timestamp
-          })
-        });
-
-        const resultado = await res.json();
-        alert(resultado.message);
-      } catch (err) {
-        console.error('[ERRO PRODUCAO]', err);
-        alert('Erro ao atualizar produção');
-      }
+    for (let i = 0; i < 12; i++) {
+      const linha = `
+        <tr>
+          <td>${meses[i]}</td>
+          <td>${data.producao[i].toFixed(2)}</td>
+          <td>${data.consumo[i].toFixed(2)}</td>
+        </tr>
+      `;
+      tbody.innerHTML += linha;
     }
+  } catch (err) {
+    console.warn('[ERRO ao carregar histórico anual]', err);
+  }
+}
+
+
+
   </script>
 </body>
 </html>
